@@ -793,7 +793,7 @@ a:hover{text-decoration:underline}
 /* ── Header ── */
 header{border-bottom:1px solid var(--border);
        padding:.65rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
-.logo{height:28px;width:auto;display:block;flex-shrink:0}
+.logo{height:20px;width:auto;display:block;flex-shrink:0}
 h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
    letter-spacing:.04em;color:var(--text-bright);flex:1}
 
@@ -832,11 +832,13 @@ h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
 
 /* ── Status footer (fixed bottom-left) ── */
 .status-footer{position:fixed;bottom:0;left:0;z-index:100;
-               display:flex;align-items:center;gap:.55rem;
-               padding:.5rem .9rem;background:var(--bg);
+               display:flex;align-items:center;gap:.6rem;
+               padding:.45rem .9rem;background:var(--bg);
                border-top:1px solid var(--border);
                border-right:1px solid var(--border);
                border-radius:0 6px 0 0}
+.footer-label{font-size:.68rem;color:var(--text-dim);letter-spacing:.04em;white-space:nowrap}
+.footer-label span{color:var(--text);font-variant-numeric:tabular-nums}
 
 /* ── Tabs ── */
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);
@@ -1000,6 +1002,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
 
 <footer class="status-footer">
   <span class="status-dot" id="dot"></span>
+  <span class="footer-label" id="footer-status">idle</span>
   <div class="mic-bars" id="mic-bars">
     <div class="bar" id="b1" style="height:3px"></div>
     <div class="bar" id="b2" style="height:3px"></div>
@@ -1007,6 +1010,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
     <div class="bar" id="b4" style="height:3px"></div>
     <div class="bar" id="b5" style="height:3px"></div>
   </div>
+  <span class="footer-label" id="footer-level">mic <span>0%</span></span>
 </footer>
 
 <div id="feed" class="panel active">
@@ -1088,6 +1092,11 @@ async function refreshStatus() {
   document.getElementById('btn-stop').disabled  = !s.recording;
   document.getElementById('queue-badge').textContent =
     s.whisper_ready ? (s.queue > 0 ? `queue: ${s.queue}` : '') : 'whisper loading…';
+  // footer status label
+  const statusEl = document.getElementById('footer-status');
+  if (!s.whisper_ready) statusEl.textContent = 'loading…';
+  else if (s.recording)  statusEl.textContent = 'recording';
+  else                   statusEl.textContent = 'idle';
   updateBars(s.level || 0);
 
   const nowRunning = new Set(s.running_agents || []);
@@ -1116,6 +1125,9 @@ function updateBars(level) {
     const h = alive ? Math.max(3, Math.round(level * profile[i-1] * 20)) : 3;
     document.getElementById('b'+i).style.height = h + 'px';
   }
+  const pct = Math.round(level * 100);
+  const lvlEl = document.getElementById('footer-level');
+  if (lvlEl) lvlEl.innerHTML = `mic <span>${pct}%</span>`;
 }
 
 // ── Live feed ─────────────────────────────────────────────────────────────────

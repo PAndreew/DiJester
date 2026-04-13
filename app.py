@@ -523,12 +523,24 @@ def manifest():
 def icon_svg():
     return Response(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
-        '<rect width="100" height="100" rx="20" fill="#1a1d27"/>'
-        '<rect x="42" y="18" width="16" height="30" rx="8" fill="#667eea"/>'
-        '<path d="M28 46 a22 22 0 0 0 44 0" stroke="#667eea" stroke-width="4" fill="none" stroke-linecap="round"/>'
-        '<rect x="48" y="68" width="4" height="13" fill="#667eea"/>'
-        '<rect x="35" y="79" width="30" height="4" rx="2" fill="#48bb78"/>'
+        '<rect width="100" height="100" rx="20" fill="#000"/>'
+        '<rect x="42" y="18" width="16" height="30" rx="8" fill="#00ff00"/>'
+        '<path d="M28 46 a22 22 0 0 0 44 0" stroke="#00ffcc" stroke-width="4" fill="none" stroke-linecap="round"/>'
+        '<rect x="48" y="68" width="4" height="13" fill="#2ad4ff"/>'
+        '<rect x="35" y="79" width="30" height="4" rx="2" fill="#00ffcc"/>'
         '</svg>',
+        media_type="image/svg+xml"
+    )
+
+@app.get("/logo.svg")
+def logo_svg():
+    return Response(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23.267799 11.397644">'
+        '<g transform="translate(-72.992507,-132.2491)">'
+        '<path fill="#00ffcc" d="m 96.260307,135.18614 v -2.11516 c -5.837767,0 -10.57566,4.73794 -10.57566,10.57576 h 2.115079 c 0,-4.6745 3.786187,-8.4606 8.460581,-8.4606 z"/>'
+        '<path fill="#2ad4ff" d="m 72.992507,135.18614 v -2.11516 c 5.837767,0 10.57566,4.73794 10.57566,10.57576 h -2.115079 c 0,-4.6745 -3.786187,-8.4606 -8.460581,-8.4606 z"/>'
+        '<rect fill="#00ff00" width="2.1164792" height="11.397644" x="83.568169" y="132.2491"/>'
+        '</g></svg>',
         media_type="image/svg+xml"
     )
 
@@ -775,9 +787,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 a{color:var(--green);text-decoration:none}
 a:hover{text-decoration:underline}
 
+/* ── Sticky top bar (header + tabs) ── */
+.top-bar{position:sticky;top:0;z-index:100;background:var(--bg)}
+
 /* ── Header ── */
-header{background:var(--bg);border-bottom:1px solid var(--border);
-       padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+header{border-bottom:1px solid var(--border);
+       padding:.65rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.logo{height:28px;width:auto;display:block;flex-shrink:0}
 h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
    letter-spacing:.04em;color:var(--text-bright);flex:1}
 
@@ -814,8 +830,16 @@ h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
 .btn-red:hover:not(:disabled){background:rgba(248,113,113,.16)}
 .btn-sm{padding:.28rem .65rem;font-size:.75rem}
 
+/* ── Status footer (fixed bottom-left) ── */
+.status-footer{position:fixed;bottom:0;left:0;z-index:100;
+               display:flex;align-items:center;gap:.55rem;
+               padding:.5rem .9rem;background:var(--bg);
+               border-top:1px solid var(--border);
+               border-right:1px solid var(--border);
+               border-radius:0 6px 0 0}
+
 /* ── Tabs ── */
-.tabs{display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--border);
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);
       padding:0 1.25rem;overflow-x:auto}
 .tab{padding:.6rem 1rem;cursor:pointer;color:var(--text-dim);font-size:.78rem;
      font-weight:500;letter-spacing:.04em;white-space:nowrap;
@@ -824,9 +848,9 @@ h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
 .tab.active{color:var(--text-bright);border-bottom-color:var(--green)}
 
 /* ── Panels ── */
-.panel{display:none;padding:1.1rem 1.25rem}
+.panel{display:none;padding:1.1rem 1.25rem 4rem}
 .panel.active{display:block}
-.feed{max-height:calc(100vh - 210px);overflow-y:auto}
+.feed{max-height:calc(100vh - 160px);overflow-y:auto}
 
 /* ── Section label ── */
 .section-label{font-size:.68rem;font-weight:600;letter-spacing:.18em;
@@ -955,7 +979,26 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
 </style>
 </head>
 <body>
-<header>
+<div class="top-bar">
+  <header>
+    <img src="/logo.svg" class="logo" alt="DiJester">
+    <h1>DiJester</h1>
+    <span class="badge" id="queue-badge"></span>
+    <button class="btn btn-green" id="btn-start" onclick="setRecording(true)">&#9654; Start</button>
+    <button class="btn btn-red"   id="btn-stop"  onclick="setRecording(false)" disabled>&#9632; Stop</button>
+  </header>
+  <nav class="tabs">
+    <div class="tab active" onclick="switchTab('feed',this)">Feed</div>
+    <div class="tab"        onclick="switchTab('todos',this)">Todos</div>
+    <div class="tab"        onclick="switchTab('shopping',this)">Shopping</div>
+    <div class="tab"        onclick="switchTab('health',this)">Health</div>
+    <div class="tab"        onclick="switchTab('summaries',this)">Summaries</div>
+    <div class="tab"        onclick="switchTab('extractions',this)">Log</div>
+    <div class="tab"        onclick="switchTab('settings',this)">Settings</div>
+  </nav>
+</div>
+
+<footer class="status-footer">
   <span class="status-dot" id="dot"></span>
   <div class="mic-bars" id="mic-bars">
     <div class="bar" id="b1" style="height:3px"></div>
@@ -964,21 +1007,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
     <div class="bar" id="b4" style="height:3px"></div>
     <div class="bar" id="b5" style="height:3px"></div>
   </div>
-  <h1>DiJester</h1>
-  <span class="badge" id="queue-badge"></span>
-  <button class="btn btn-green" id="btn-start" onclick="setRecording(true)">&#9654; Start</button>
-  <button class="btn btn-red"   id="btn-stop"  onclick="setRecording(false)" disabled>&#9632; Stop</button>
-</header>
-
-<nav class="tabs">
-  <div class="tab active" onclick="switchTab('feed',this)">Feed</div>
-  <div class="tab"        onclick="switchTab('todos',this)">Todos</div>
-  <div class="tab"        onclick="switchTab('shopping',this)">Shopping</div>
-  <div class="tab"        onclick="switchTab('health',this)">Health</div>
-  <div class="tab"        onclick="switchTab('summaries',this)">Summaries</div>
-  <div class="tab"        onclick="switchTab('extractions',this)">Log</div>
-  <div class="tab"        onclick="switchTab('settings',this)">Settings</div>
-</nav>
+</footer>
 
 <div id="feed" class="panel active">
   <div class="feed" id="feed-list"></div>

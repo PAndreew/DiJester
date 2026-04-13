@@ -1,0 +1,88 @@
+services:
+
+  # ── Gemma 4 2B GGUF inference server ────────────────────────────────────────
+  llama:
+    build:
+      context: .
+      dockerfile: Dockerfile.llama
+    restart: unless-stopped
+    volumes:
+      - /home/andras/llama.cpp/build/bin:/app/bin:ro
+      - /home/andras/miniforge3/lib:/miniforge/lib:ro
+      - /home/andras/miniforge3/targets/x86_64-linux/lib:/miniforge/targets/lib:ro
+      - /home/andras/models:/models:ro
+    environment:
+      - LD_LIBRARY_PATH=/app/bin:/miniforge/lib:/miniforge/targets/lib
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    command: >
+      /app/bin/llama-server
+      -m /models/gemma-4-E2B-it-UD-Q8_K_XL.gguf
+      --host 0.0.0.0
+      --port 8080
+      -ngl 99
+      -c 8192
+      --alias gemma
+      -n 1024
+    ports:
+      - "127.0.0.1:8080:8080"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # ── Voice pipeline (recorder + Whisper + FastAPI UI) ─────────────────────────
+  pipeline:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      llama:
+        condition: service_healthy
+    environment:
+      - LLAMA_URL=http://llama:8080/v1/chat/completions
+      - LD_LIBRARY_PATH=/miniforge/lib:/miniforge/targets/lib
+      # PulseAudio — talk to the host daemon via its Unix socket
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - PULSE_COOKIE=/pulse/cookie
+      # tell ctranslate2 / faster-whisper to use the GPU
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      # persistent database
+      - pipeline-data:/app/data
+      # Whisper model cache so it only downloads once
+      - whisper-cache:/home/appuser/.cache/huggingface
+      # CUDA libs for ctranslate2 (same as llama container)
+      - /home/andras/miniforge3/lib:/miniforge/lib:ro
+      - /home/andras/miniforge3/targets/x86_64-linux/lib:/miniforge/targets/lib:ro
+      # PulseAudio socket (read-only — we only consume audio)
+      - /run/user/1000/pulse:/run/user/1000/pulse:ro
+      # PulseAudio auth cookie mounted at the path PULSE_COOKIE points to
+      - /home/andras/.config/pulse/cookie:/pulse/cookie:ro
+    devices:
+      # ALSA — needed by sounddevice/PortAudio as fallback
+      - /dev/snd:/dev/snd
+    group_add:
+      - "29"   # audio GID on this host
+    ports:
+      - "0.0.0.0:8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  whisper-cache:
+  pipeline-data:

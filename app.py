@@ -510,12 +510,12 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/manifest.json")
 def manifest():
     return JSONResponse({
-        "name": "Voice Pipeline",
-        "short_name": "VoicePipe",
+        "name": "DiJester",
+        "short_name": "DiJester",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#0f1117",
-        "theme_color": "#1a1d27",
+        "background_color": "#000000",
+        "theme_color": "#000000",
         "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
     })
 
@@ -736,17 +736,216 @@ _HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#1a1d27">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg">
-<title>Voice Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet">
+<title>DiJester</title>
 <style>
+:root{
+  --bg:#000;
+  --surface:#090909;
+  --surface-2:#111;
+  --surface-3:#161616;
+  --border:rgba(255,255,255,0.06);
+  --border-hover:rgba(255,255,255,0.12);
+  --text:#ccc;
+  --text-bright:#e8e8e8;
+  --text-dim:#525252;
+  --green:#3dba6e;
+  --green-dim:rgba(61,186,110,0.12);
+  --green-border:rgba(61,186,110,0.28);
+  --red:#f87171;
+  --red-dim:rgba(248,113,113,0.1);
+  --silver:#909090;
+  --silver-light:#c0c0c0;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
-header{background:#1a1d27;border-bottom:1px solid #2d3048;padding:.8rem 1.2rem;
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+     min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--green);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Header ── */
+header{background:var(--bg);border-bottom:1px solid var(--border);
+       padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
+   letter-spacing:.04em;color:var(--text-bright);flex:1}
+
+/* ── Recording dot ── */
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);flex-shrink:0;
+            transition:background .3s}
+.status-dot.recording{background:var(--red);animation:pulse-dot 1.4s infinite}
+.status-dot.loading{background:#d4a017}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(248,113,113,.4)}
+                     50%{opacity:.7;box-shadow:0 0 0 6px rgba(248,113,113,0)}}
+
+/* ── Mic bars ── */
+.mic-bars{display:flex;align-items:flex-end;gap:3px;height:18px;flex-shrink:0}
+.mic-bars .bar{width:3px;border-radius:2px;background:var(--surface-3);
+               transition:height .1s ease,background .1s ease}
+.mic-bars.active .bar{background:var(--green)}
+
+/* ── Badge / queue ── */
+.badge{font-size:.7rem;color:var(--text-dim);letter-spacing:.04em}
+
+/* ── Buttons ── */
+.btn{padding:.38rem .85rem;border-radius:6px;border:1px solid var(--border);
+     cursor:pointer;font-size:.8rem;font-weight:500;font-family:'Inter',sans-serif;
+     background:var(--surface-2);color:var(--text);transition:border-color .2s,background .2s,color .2s}
+.btn:hover:not(:disabled){border-color:var(--border-hover);background:var(--surface-3);color:var(--text-bright)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn-green{background:var(--green-dim);border-color:var(--green-border);color:var(--green)}
+.btn-green:hover:not(:disabled){background:rgba(61,186,110,.2)}
+.btn-red{background:var(--red-dim);border-color:rgba(248,113,113,.25);color:var(--red)}
+.btn-red:hover:not(:disabled){background:rgba(248,113,113,.16)}
+.btn-sm{padding:.28rem .65rem;font-size:.75rem}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--border);
+      padding:0 1.25rem;overflow-x:auto}
+.tab{padding:.6rem 1rem;cursor:pointer;color:var(--text-dim);font-size:.78rem;
+     font-weight:500;letter-spacing:.04em;white-space:nowrap;
+     border-bottom:2px solid transparent;transition:color .2s;flex-shrink:0}
+.tab:hover{color:var(--silver)}
+.tab.active{color:var(--text-bright);border-bottom-color:var(--green)}
+
+/* ── Panels ── */
+.panel{display:none;padding:1.1rem 1.25rem}
+.panel.active{display:block}
+.feed{max-height:calc(100vh - 210px);overflow-y:auto}
+
+/* ── Section label ── */
+.section-label{font-size:.68rem;font-weight:600;letter-spacing:.18em;
+               text-transform:uppercase;color:var(--text-dim);margin-bottom:.7rem}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:.5rem;margin-bottom:.85rem;align-items:center;flex-wrap:wrap}
+
+/* ── Entry cards (feed / extractions) ── */
+.entry{padding:.55rem .8rem;margin-bottom:.35rem;background:var(--surface);
+       border-radius:6px;border:1px solid var(--border);border-left:2px solid var(--border)}
+.entry.unprocessed{border-left-color:var(--green)}
+.ts{font-size:.68rem;color:var(--text-dim);margin-bottom:.15rem;letter-spacing:.02em}
+.txt{font-size:.87rem;line-height:1.55;color:var(--text)}
+
+/* ── Checklist ── */
+ul.checklist{list-style:none}
+ul.checklist li{display:flex;align-items:center;gap:.55rem;padding:.5rem .75rem;
+                margin-bottom:.3rem;background:var(--surface);border-radius:6px;
+                border:1px solid var(--border);transition:border-color .2s}
+ul.checklist li:hover{border-color:var(--border-hover)}
+ul.checklist li.done .label{text-decoration:line-through;color:var(--text-dim)}
+.label{flex:1;font-size:.87rem;color:var(--text)}
+.qty{font-size:.76rem;color:var(--text-dim);margin-right:.35rem}
+
+/* Circular checkbox */
+.cb{appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    border:1px solid var(--text-dim);background:transparent;cursor:pointer;
+    flex-shrink:0;position:relative;transition:border-color .2s,background .2s}
+.cb:checked{background:var(--green);border-color:var(--green)}
+.cb:checked::after{content:"";position:absolute;left:4px;top:2px;
+                   width:5px;height:8px;border:2px solid #000;
+                   border-top:none;border-left:none;transform:rotate(45deg)}
+.del{background:none;border:none;color:var(--text-dim);cursor:pointer;
+     font-size:.85rem;padding:0 .2rem;transition:color .2s;line-height:1}
+.del:hover{color:var(--red)}
+
+/* ── Category badge ── */
+.cat-badge{font-size:.66rem;padding:.1rem .45rem;border-radius:10px;
+           background:var(--surface-2);border:1px solid var(--border);
+           color:var(--silver);flex-shrink:0;letter-spacing:.04em}
+
+/* ── Summary cards ── */
+.summary-card{background:var(--surface);border:1px solid var(--border);
+              border-radius:8px;margin-bottom:.65rem;overflow:hidden;
+              transition:border-color .2s}
+.summary-card:hover{border-color:var(--border-hover)}
+.summary-header{padding:.65rem .85rem;display:flex;align-items:flex-start;gap:.6rem}
+.summary-title{flex:1;font-size:.88rem;font-weight:600;color:var(--text-bright);
+               line-height:1.4;font-family:'Satoshi',sans-serif}
+.summary-meta{font-size:.68rem;color:var(--text-dim);padding:0 .85rem .4rem;letter-spacing:.03em}
+.summary-body{font-size:.83rem;line-height:1.6;color:var(--text);
+              padding:.5rem .85rem .85rem;border-top:1px solid var(--border);white-space:pre-wrap}
+
+/* ── Extraction log ── */
+.ext-entry{background:var(--surface);border:1px solid var(--border);
+           border-radius:6px;margin-bottom:.5rem;overflow:hidden}
+.ext-header{padding:.42rem .75rem;display:flex;gap:.75rem;align-items:center;
+            font-size:.72rem;color:var(--text-dim);border-bottom:1px solid var(--border)}
+.ext-counts{margin-left:auto;color:var(--silver)}
+.ext-raw{padding:.55rem .75rem;font-family:'Courier New',monospace;font-size:.78rem;
+         white-space:pre-wrap;word-break:break-word;color:rgba(61,186,110,.8);
+         max-height:240px;overflow-y:auto}
+
+/* ── Settings / agent cards ── */
+.agent-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+            padding:.85rem 1rem;margin-bottom:.6rem;transition:border-color .2s}
+.agent-card:hover{border-color:var(--border-hover)}
+.agent-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.35rem}
+.agent-name{font-family:'Satoshi',sans-serif;font-weight:700;font-size:.9rem;
+            color:var(--text-bright);flex:1;letter-spacing:.02em}
+.source-badge{font-size:.65rem;padding:.1rem .42rem;border-radius:10px;flex-shrink:0;
+              letter-spacing:.05em;font-weight:600;text-transform:uppercase}
+.src-transcriptions{background:rgba(61,186,110,.1);border:1px solid var(--green-border);color:var(--green)}
+.src-hackernews{background:rgba(251,179,65,.08);border:1px solid rgba(251,179,65,.25);color:#fbb341}
+.agent-desc{font-size:.8rem;color:var(--text-dim);margin-bottom:.65rem;line-height:1.5}
+.agent-footer{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
+.last-run{font-size:.72rem;color:var(--text-dim);flex:1;letter-spacing:.02em}
+
+/* Toggle switch */
+.toggle{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:var(--surface-3);
+        border:1px solid var(--border);border-radius:20px;transition:.25s}
+.slider::before{content:"";position:absolute;width:14px;height:14px;left:2px;bottom:2px;
+                background:var(--text-dim);border-radius:50%;transition:.25s}
+input:checked+.slider{background:var(--green-dim);border-color:var(--green-border)}
+input:checked+.slider::before{transform:translateX(16px);background:var(--green)}
+
+/* Interval row */
+.interval-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.interval-row label{font-size:.74rem;color:var(--text-dim);letter-spacing:.04em}
+.interval-select,.interval-custom{
+  background:var(--surface-2);color:var(--text);
+  border:1px solid var(--border);border-radius:5px;
+  padding:.28rem .5rem;font-size:.78rem;font-family:'Inter',sans-serif;
+  cursor:pointer;transition:border-color .2s}
+.interval-select:hover,.interval-custom:focus{border-color:var(--border-hover);outline:none}
+.interval-custom{width:64px;display:none}
+
+/* Notification card */
+.notif-card{background:var(--surface);border:1px solid var(--border);
+            border-radius:8px;padding:.85rem 1rem;margin-bottom:1.1rem}
+.notif-status{font-size:.82rem;color:var(--text-dim);margin:.35rem 0 .7rem;line-height:1.5}
+
+/* Empty state */
+.empty{color:var(--text-dim);font-size:.83rem;padding:.85rem 0;letter-spacing:.02em}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);
+       background:var(--surface-2);color:var(--text-bright);
+       padding:.6rem 1.25rem;border-radius:7px;font-size:.84rem;
+       border:1px solid var(--border);
+       box-shadow:0 8px 32px rgba(0,0,0,.7);opacity:0;
+       transition:opacity .25s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1}
+#toast.ok{border-color:var(--green-border);color:var(--green)}
+#toast.warn{border-color:rgba(251,179,65,.35);color:#fbb341}
+#toast.err{border-color:rgba(248,113,113,.3);color:var(--red)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+</style>
        display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
 h1{font-size:1.1rem;font-weight:600;flex:1}
 .status-dot{width:10px;height:10px;border-radius:50%;background:#4a5568;flex-shrink:0}
@@ -853,72 +1052,63 @@ input:checked+.slider::before{transform:translateX(16px)}
 <header>
   <span class="status-dot" id="dot"></span>
   <div class="mic-bars" id="mic-bars">
-    <div class="bar" id="b1" style="height:4px"></div>
-    <div class="bar" id="b2" style="height:4px"></div>
-    <div class="bar" id="b3" style="height:4px"></div>
-    <div class="bar" id="b4" style="height:4px"></div>
-    <div class="bar" id="b5" style="height:4px"></div>
+    <div class="bar" id="b1" style="height:3px"></div>
+    <div class="bar" id="b2" style="height:3px"></div>
+    <div class="bar" id="b3" style="height:3px"></div>
+    <div class="bar" id="b4" style="height:3px"></div>
+    <div class="bar" id="b5" style="height:3px"></div>
   </div>
-  <h1>Voice Pipeline</h1>
+  <h1>DiJester</h1>
   <span class="badge" id="queue-badge"></span>
   <button class="btn btn-green" id="btn-start" onclick="setRecording(true)">&#9654; Start</button>
   <button class="btn btn-red"   id="btn-stop"  onclick="setRecording(false)" disabled>&#9632; Stop</button>
 </header>
 
 <nav class="tabs">
-  <div class="tab active" onclick="switchTab('feed',this)">Live Feed</div>
+  <div class="tab active" onclick="switchTab('feed',this)">Feed</div>
   <div class="tab"        onclick="switchTab('todos',this)">Todos</div>
   <div class="tab"        onclick="switchTab('shopping',this)">Shopping</div>
   <div class="tab"        onclick="switchTab('health',this)">Health</div>
   <div class="tab"        onclick="switchTab('summaries',this)">Summaries</div>
   <div class="tab"        onclick="switchTab('extractions',this)">Log</div>
-  <div class="tab"        onclick="switchTab('settings',this)">&#9881; Settings</div>
+  <div class="tab"        onclick="switchTab('settings',this)">Settings</div>
 </nav>
 
 <div id="feed" class="panel active">
-  <div class="toolbar">
-    <span style="flex:1;font-size:.78rem;color:#718096">Auto-refresh 3s</span>
-  </div>
   <div class="feed" id="feed-list"></div>
 </div>
 
 <div id="todos" class="panel">
-  <div class="toolbar"><span style="flex:1"></span></div>
   <ul class="checklist" id="todo-list"></ul>
 </div>
 
 <div id="shopping" class="panel">
-  <div class="toolbar"><span style="flex:1"></span></div>
   <ul class="checklist" id="shop-list"></ul>
 </div>
 
 <div id="health" class="panel">
-  <div class="toolbar"><span style="flex:1"></span></div>
   <ul class="checklist" id="health-list"></ul>
 </div>
 
 <div id="summaries" class="panel">
-  <div class="toolbar"><span style="flex:1"></span></div>
   <div id="summary-list"></div>
 </div>
 
 <div id="extractions" class="panel">
-  <div class="toolbar">
-    <span style="flex:1;font-size:.78rem;color:#718096">Raw LLM responses</span>
-  </div>
+  <div class="section-label" style="margin-bottom:.85rem">Raw LLM responses</div>
   <div class="feed" id="extraction-list"></div>
 </div>
 
 <div id="settings" class="panel">
   <div class="notif-card">
-    <div class="section-title">Push Notifications</div>
+    <div class="section-label">Push Notifications</div>
     <div class="notif-status" id="notif-status">Checking…</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-      <button class="btn btn-blue btn-sm" id="btn-notif" onclick="setupNotifications()">Enable Notifications</button>
-      <button class="btn btn-sm" style="background:#2d3748" onclick="testNotification()">Send Test</button>
+      <button class="btn btn-green btn-sm" id="btn-notif" onclick="setupNotifications()">Enable Notifications</button>
+      <button class="btn btn-sm" onclick="testNotification()">Send Test</button>
     </div>
   </div>
-  <div class="section-title">Scheduled Agents</div>
+  <div class="section-label">Scheduled Agents</div>
   <div id="agents-list"></div>
 </div>
 
@@ -1034,8 +1224,8 @@ async function refreshShopping() {
 
 // ── Health ────────────────────────────────────────────────────────────────────
 const CAT_COLORS = {
-  symptom:'#fc8181',medication:'#f6ad55',appointment:'#76e4f7',
-  exercise:'#68d391',mood:'#d6bcfa',food:'#fefcbf'
+  symptom:'#f87171',medication:'#fbb341',appointment:'#67e8f9',
+  exercise:'#3dba6e',mood:'#c084fc',food:'#a3e635'
 };
 async function refreshHealth() {
   const rows = await fetch('/api/health').then(r=>r.json());
@@ -1113,7 +1303,7 @@ async function refreshSettings() {
   if (!agents.length) { el.innerHTML = '<div class="empty">No agents.</div>'; return; }
   el.innerHTML = agents.map(a => {
     const srcClass = 'src-' + a.source;
-    const srcLabel = a.source === 'hackernews' ? 'Hacker News' : 'Transcriptions';
+    const srcLabel = a.source === 'hackernews' ? 'HN' : 'MIC';
     const isCustom = !INTERVALS.slice(0,-1).find(([v])=>v===a.interval_min);
     const selOpts = INTERVALS.map(([v,l]) =>
       `<option value="${v}" ${(isCustom?v===0:v===a.interval_min)?'selected':''}>${l}</option>`
@@ -1144,7 +1334,7 @@ async function refreshSettings() {
       </div>
       <div class="agent-footer">
         <span class="last-run" id="last-${a.id}">${lastInfo}</span>
-        <button class="btn btn-blue btn-sm" id="run-${a.id}"
+        <button class="btn btn-green btn-sm" id="run-${a.id}"
                 onclick="runAgent(${a.id})" ${a.running?'disabled':''}>
           ${a.running ? '&#9203; Running…' : '&#9654; Run now'}
         </button>

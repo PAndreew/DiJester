@@ -761,6 +761,9 @@ _HTML = """<!DOCTYPE html>
   --green:#3dba6e;
   --green-dim:rgba(61,186,110,0.12);
   --green-border:rgba(61,186,110,0.28);
+  --teal:#2dd4bf;
+  --teal-dim:rgba(45,212,191,0.12);
+  --teal-border:rgba(45,212,191,0.3);
   --red:#f87171;
   --red-dim:rgba(248,113,113,0.1);
   --silver:#909090;
@@ -803,6 +806,10 @@ h1{font-family:'Satoshi',sans-serif;font-size:1rem;font-weight:700;
 .btn:disabled{opacity:.35;cursor:default}
 .btn-green{background:var(--green-dim);border-color:var(--green-border);color:var(--green)}
 .btn-green:hover:not(:disabled){background:rgba(61,186,110,.2)}
+.btn-teal{background:var(--teal-dim);border-color:var(--teal-border);color:var(--teal)}
+.btn-teal:hover:not(:disabled){background:rgba(45,212,191,.2)}
+.btn-white{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:#fff}
+.btn-white:hover:not(:disabled){background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.25)}
 .btn-red{background:var(--red-dim);border-color:rgba(248,113,113,.25);color:var(--red)}
 .btn-red:hover:not(:disabled){background:rgba(248,113,113,.16)}
 .btn-sm{padding:.28rem .65rem;font-size:.75rem}
@@ -905,9 +912,9 @@ ul.checklist li.done .label{text-decoration:line-through;color:var(--text-dim)}
 .slider{position:absolute;cursor:pointer;inset:0;background:var(--surface-3);
         border:1px solid var(--border);border-radius:20px;transition:.25s}
 .slider::before{content:"";position:absolute;width:14px;height:14px;left:2px;bottom:2px;
-                background:var(--text-dim);border-radius:50%;transition:.25s}
+                background:#fff;border-radius:50%;transition:.25s}
 input:checked+.slider{background:var(--green-dim);border-color:var(--green-border)}
-input:checked+.slider::before{transform:translateX(16px);background:var(--green)}
+input:checked+.slider::before{transform:translateX(16px);background:#fff}
 
 /* Interval row */
 .interval-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
@@ -1003,7 +1010,7 @@ input:checked+.slider::before{transform:translateX(16px);background:var(--green)
     <div class="section-label">Push Notifications</div>
     <div class="notif-status" id="notif-status">Checking…</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-      <button class="btn btn-green btn-sm" id="btn-notif" onclick="setupNotifications()">Enable Notifications</button>
+      <button class="btn btn-teal btn-sm" id="btn-notif" onclick="setupNotifications()">Enable Notifications</button>
       <button class="btn btn-sm" onclick="testNotification()">Send Test</button>
     </div>
   </div>
@@ -1233,7 +1240,7 @@ async function refreshSettings() {
       </div>
       <div class="agent-footer">
         <span class="last-run" id="last-${a.id}">${lastInfo}</span>
-        <button class="btn btn-green btn-sm" id="run-${a.id}"
+        <button class="btn btn-white btn-sm" id="run-${a.id}"
                 onclick="runAgent(${a.id})" ${a.running?'disabled':''}>
           ${a.running ? '&#9203; Running…' : '&#9654; Run now'}
         </button>

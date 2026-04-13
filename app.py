@@ -594,6 +594,10 @@ def transcriptions(limit: int = 200):
         ).fetchall()
     return [dict(r) for r in rows]
 
+@app.delete("/api/transcriptions/{tid}")
+def delete_transcription(tid: int):
+    with _db() as c: c.execute("DELETE FROM transcriptions WHERE id=?", (tid,)); return {"ok":True}
+
 # ── Todos ─────────────────────────────────────────────────────────────────────
 @app.get("/api/todos")
 def todos():
@@ -651,6 +655,23 @@ def extractions(limit: int = 50):
             "LEFT JOIN agents a ON e.agent_id=a.id ORDER BY e.timestamp DESC LIMIT ?", (limit,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+@app.delete("/api/extractions/{eid}")
+def delete_extraction(eid: int):
+    with _db() as c: c.execute("DELETE FROM extractions WHERE id=?", (eid,)); return {"ok":True}
+
+@app.post("/api/clear-all")
+def clear_all():
+    with _db() as conn:
+        conn.executescript("""
+            DELETE FROM transcriptions;
+            DELETE FROM todos;
+            DELETE FROM shopping;
+            DELETE FROM health;
+            DELETE FROM summaries;
+            DELETE FROM extractions;
+        """)
+    return {"ok": True}
 
 # ── Agents ────────────────────────────────────────────────────────────────────
 @app.get("/api/agents")
@@ -769,7 +790,7 @@ _HTML = """<!DOCTYPE html>
   --border-hover:rgba(255,255,255,0.12);
   --text:#ccc;
   --text-bright:#e8e8e8;
-  --text-dim:#525252;
+  --text-dim:#888;
   --green:#3dba6e;
   --green-dim:rgba(61,186,110,0.12);
   --green-border:rgba(61,186,110,0.28);
@@ -887,8 +908,9 @@ ul.checklist li.done .label{text-decoration:line-through;color:var(--text-dim)}
                    width:5px;height:8px;border:2px solid #000;
                    border-top:none;border-left:none;transform:rotate(45deg)}
 .del{background:none;border:none;color:var(--text-dim);cursor:pointer;
-     font-size:.85rem;padding:0 .2rem;transition:color .2s;line-height:1}
+     padding:0 .2rem;transition:color .2s;line-height:1;display:flex;align-items:center}
 .del:hover{color:var(--red)}
+.del svg{pointer-events:none}
 
 /* ── Category badge ── */
 .cat-badge{font-size:.66rem;padding:.1rem .45rem;border-radius:10px;
@@ -1047,6 +1069,11 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
       <button class="btn btn-sm" onclick="testNotification()">Send Test</button>
     </div>
   </div>
+  <div class="notif-card">
+    <div class="section-label">Data</div>
+    <div class="notif-status">Permanently deletes all transcriptions, todos, shopping, health, summaries and extraction logs.</div>
+    <button class="btn btn-red btn-sm" onclick="clearAll()">Clear all data</button>
+  </div>
   <div class="section-label">Scheduled Agents</div>
   <div id="agents-list"></div>
 </div>
@@ -1054,6 +1081,9 @@ input:checked+.slider::before{transform:translateX(16px);background:#fff}
 <div id="toast"></div>
 
 <script>
+// Lucide trash-2 icon inline
+const TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+
 let activeTab = 'feed';
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -1136,9 +1166,12 @@ async function refreshFeed() {
   const el = document.getElementById('feed-list');
   if (!rows.length) { el.innerHTML = '<div class="empty">No transcriptions yet.</div>'; return; }
   el.innerHTML = rows.map(r => `
-    <div class="entry ${r.processed ? '' : 'unprocessed'}">
-      <div class="ts">${r.timestamp.slice(0,19).replace('T',' ')}${r.processed ? '' : ' · pending'}</div>
-      <div class="txt">${esc(r.text)}</div>
+    <div class="entry ${r.processed ? '' : 'unprocessed'}" style="display:flex;gap:.5rem;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div class="ts">${r.timestamp.slice(0,19).replace('T',' ')}${r.processed ? '' : ' · pending'}</div>
+        <div class="txt">${esc(r.text)}</div>
+      </div>
+      <button class="del" style="margin-top:.15rem;flex-shrink:0" onclick="delTranscription(${r.id})">${TRASH}</button>
     </div>`).join('');
 }
 
@@ -1151,7 +1184,7 @@ async function refreshTodos() {
     <li class="${r.done?'done':''}" id="todo-${r.id}">
       <input class="cb" type="checkbox" ${r.done?'checked':''} onchange="toggle('todos',${r.id})">
       <span class="label">${esc(r.text)}</span>
-      <button class="del" onclick="del('todos',${r.id})">&#10005;</button>
+      <button class="del" onclick="del('todos',${r.id})">${TRASH}</button>
     </li>`).join('');
 }
 
@@ -1165,7 +1198,7 @@ async function refreshShopping() {
       <input class="cb" type="checkbox" ${r.done?'checked':''} onchange="toggle('shopping',${r.id})">
       <span class="label">${esc(r.item)}</span>
       ${r.quantity ? `<span class="qty">${esc(r.quantity)}</span>` : ''}
-      <button class="del" onclick="del('shopping',${r.id})">&#10005;</button>
+      <button class="del" onclick="del('shopping',${r.id})">${TRASH}</button>
     </li>`).join('');
 }
 
@@ -1184,7 +1217,7 @@ async function refreshHealth() {
       <input class="cb" type="checkbox" ${r.done?'checked':''} onchange="toggle('health',${r.id})">
       <span class="label">${esc(r.text)}</span>
       ${r.category ? `<span class="cat-badge" style="color:${color}">${esc(r.category)}</span>` : ''}
-      <button class="del" onclick="del('health',${r.id})">&#10005;</button>
+      <button class="del" onclick="del('health',${r.id})">${TRASH}</button>
     </li>`;
   }).join('');
 }
@@ -1201,7 +1234,7 @@ async function refreshSummaries() {
           <div class="summary-title">${esc(r.title)}</div>
           ${r.url ? `<a href="${esc(r.url)}" target="_blank" style="font-size:.75rem;color:#667eea">${esc(r.url.replace(/^https?:\/\//,'').slice(0,60))}</a>` : ''}
         </div>
-        <button class="del" onclick="delSummary(${r.id})">&#10005;</button>
+        <button class="del" onclick="delSummary(${r.id})">${TRASH}</button>
       </div>
       <div class="summary-meta">${r.created_at.slice(0,19).replace('T',' ')} &middot; ${esc(r.source)}</div>
       <div class="summary-body">${esc(r.content)}</div>
@@ -1211,6 +1244,23 @@ async function refreshSummaries() {
 async function delSummary(id) {
   await fetch('/api/summaries/'+id, {method:'DELETE'});
   refreshSummaries();
+}
+
+async function delTranscription(id) {
+  await fetch('/api/transcriptions/'+id, {method:'DELETE'});
+  refreshFeed();
+}
+
+async function delExtraction(id) {
+  await fetch('/api/extractions/'+id, {method:'DELETE'});
+  refreshExtractions();
+}
+
+async function clearAll() {
+  if (!confirm('Delete ALL data? This cannot be undone.')) return;
+  await fetch('/api/clear-all', {method:'POST'});
+  showToast('All data cleared', 'warn');
+  refreshAll();
 }
 
 // ── Extraction log ────────────────────────────────────────────────────────────
@@ -1226,6 +1276,7 @@ async function refreshExtractions() {
         <span>${r.timestamp.slice(0,19).replace('T',' ')}${agentLabel}</span>
         <span>${r.segments_count} input(s)</span>
         <span class="ext-counts">${r.todos_count}T / ${r.shopping_count}S</span>
+        <button class="del" onclick="delExtraction(${r.id})">${TRASH}</button>
       </div>
       <div class="ext-raw">${esc(pretty)}</div>
     </div>`;
